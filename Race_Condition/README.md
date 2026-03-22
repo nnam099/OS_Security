@@ -35,6 +35,7 @@ Y --> Z["symlink -> passwd"]
 C -. exploit .-> X
 Z --> D
 E --> R["Privilege Escalation"]
+```
 
 ***
 
@@ -150,12 +151,12 @@ seteuid(getuid());
 
 ```mermaid
 flowchart TD
-A[access] --> B[fopen as root]
-B --> C[Exploit Success ❌]
+A["access"] --> B["fopen as root"]
+B --> C["Exploit Success ❌"]
 
-D[access] --> E[seteuid]
-E --> F[fopen as user]
-F --> G[Exploit Failed ✅]
+D["access"] --> E["seteuid"]
+E --> F["fopen as user"]
+F --> G["Exploit Failed ✅"]
 ```
 
 ***
