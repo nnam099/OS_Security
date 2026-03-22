@@ -20,39 +20,12 @@ Khai thác chương trình SUID để ghi đè vào file được bảo vệ
 
 So sánh hiệu quả của giải pháp khắc phục
 
-3. MÔ HÌNH LAB
-3.1 Các thành phần chính
+3. MÔ HÌNH LAB(Các thành phần chính)
 Thành phần	Mô tả	Vai trò
 passwd	File mục tiêu thuộc sở hữu root	File cần bảo vệ, user thường không có quyền ghi
 vulnerable-program	Chương trình SUID có lỗ hổng	Nạn nhân, chạy với quyền root
 symbolic-link	Chương trình tạo symlink	Công cụ tấn công, đổi hướng file
 exploit.sh	Script khai thác	Tự động hóa race condition
-3.2 Sơ đồ luồng tấn công
-text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          LUỒNG TẤN CÔNG                                  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  [Tiến trình A - vulnerable-program]                                    │
-│                                                                         │
-│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐   │
-│  │ CHECK           │     │    KHE HỞ       │     │ USE             │   │
-│  │ access(file)    │ ──► │  DELAY loop     │ ──► │ fopen(file)     │   │
-│  │ file = thường   │     │  (500000 vòng)  │     │ file = ???      │   │
-│  └─────────────────┘     └─────────────────┘     └─────────────────┘   │
-│                                   ▲                                     │
-│                                   │                                     │
-│  [Tiến trình B - symbolic-link]   │                                     │
-│                                   │                                     │
-│                         ┌─────────────────────┐                         │
-│                         │ ĐỔI SYMLINK         │                         │
-│                         │ unlink(file)        │                         │
-│                         │ symlink → passwd    │                         │
-│                         └─────────────────────┘                         │
-│                                                                         │
-│  KẾT QUẢ: fopen() mở passwd (file root) và ghi dữ liệu ✅               │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
 4. CÁC BƯỚC THỰC HIỆN
 4.1 Thiết lập môi trường
 Bước 1: Tạo người dùng lab2
