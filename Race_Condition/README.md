@@ -1,186 +1,178 @@
-1. GIỚI THIỆU
-Race condition là một loại lỗ hổng bảo mật xảy ra khi kết quả của một chương trình phụ thuộc vào thời điểm và thứ tự thực thi của các tiến trình. Trong lab này, chúng ta tập trung vào lỗ hổng TOCTOU (Time-Of-Check to Time-Of-Use) - một dạng race condition phổ biến trong các chương trình thao tác với file theo đường dẫn (path).
+# Lab Report: Exploiting TOCTOU Race Condition Vulnerability
 
-Lỗ hổng xuất hiện khi chương trình:
+![Cybersecurity](https://img.shields.io/badge/Focus-Cybersecurity-red.svg)
+![Vulnerability](https://img.shields.io/badge/Vulnerability-TOCTOU-orange.svg)
+![Status](https://img.shields.io/badge/Status-Completed-success.svg)
 
-Kiểm tra (Check) điều kiện an toàn của một đường dẫn
+***
 
-Sử dụng (Use) đường dẫn đó để mở/ghi file
+## 1. GIỚI THIỆU
 
-Nếu giữa hai bước này có khoảng thời gian đủ để một tiến trình khác thay đổi đối tượng mà đường dẫn trỏ đến, kẻ tấn công có thể lợi dụng để ghi vào file nhạy cảm với quyền cao.
+**Race Condition** là lỗ hổng xảy ra khi kết quả chương trình phụ thuộc vào timing và thứ tự thực thi.
 
-2. MỤC TIÊU LAB
-Hiểu rõ nguyên lý hoạt động của lỗ hổng TOCTOU
+Trong lab này, tập trung vào **TOCTOU (Time-Of-Check to Time-Of-Use)** — lỗi phổ biến khi thao tác với file path.
 
-Xác định được "khe hở" giữa thời điểm check và use
+### Cơ chế lỗi
 
-Xây dựng tình huống tấn công race condition thành công
+1. **Check** – kiểm tra quyền truy cập  
+2. **Race Window** – khoảng thời gian trống  
+3. **Use** – sử dụng lại đường dẫn  
 
-Khai thác chương trình SUID để ghi đè vào file được bảo vệ
+***
 
-So sánh hiệu quả của giải pháp khắc phục
+## 📊 Attack Flow
 
-3. MÔ HÌNH LAB(Các thành phần chính)
-Thành phần	Mô tả	Vai trò
-passwd	File mục tiêu thuộc sở hữu root	File cần bảo vệ, user thường không có quyền ghi
-vulnerable-program	Chương trình SUID có lỗ hổng	Nạn nhân, chạy với quyền root
-symbolic-link	Chương trình tạo symlink	Công cụ tấn công, đổi hướng file
-exploit.sh	Script khai thác	Tự động hóa race condition
-4. CÁC BƯỚC THỰC HIỆN
-4.1 Thiết lập môi trường
-Bước 1: Tạo người dùng lab2
+```mermaid
+flowchart LR
+A["Program Start - SUID root"] --> B["CHECK: access()"]
+B --> C["Race Window"]
+C --> D["USE: fopen()"]
+D --> E["Write File"]
 
-bash
+X["Attacker"] --> Y["unlink()"]
+Y --> Z["symlink -> passwd"]
+
+C -. exploit .-> X
+Z --> D
+E --> R["Privilege Escalation"]
+
+***
+
+## 2. MỤC TIÊU LAB
+
+- [x] Hiểu TOCTOU  
+- [x] Xác định race window  
+- [x] Exploit thành công  
+- [x] Ghi file root bằng SUID  
+- [x] Kiểm chứng fix  
+
+***
+
+## 3. MÔ HÌNH LAB
+
+| Thành phần            | Vai trò | Mô tả          |
+|----------------------|--------|----------------|
+| `passwd`             | Target | File root      |
+| `vulnerable-program` | Victim | SUID program   |
+| `symbolic-link`      | Attack | Tạo symlink    |
+| `exploit.sh`         | Script | Tự động attack |
+
+***
+
+## 4. CÁC BƯỚC THỰC HIỆN
+
+### 4.1 Thiết lập môi trường
+
+```bash
 sudo adduser lab2
-# Đặt mật khẩu: 123
-Bước 2: Đăng nhập và tạo thư mục làm việc
-
-bash
 su - lab2
-cd ~
-mkdir lab2
-cd lab2
-Bước 3: Tạo các file nguồn
+mkdir ~/lab2 && cd ~/lab2
+```
 
-File	Nội dung chính
-vulnerable-program.c	Chương trình có lỗ hổng TOCTOU
-symbolic-link.c	Chương trình tạo symlink
-exploit.sh	Script khai thác
-vulnerable-program-fix.c	Phiên bản đã sửa lỗi
-exploit-fix.sh	Script test bản vá
-4.2 Biên dịch và thiết lập SUID
-bash
-# Chuyển sang root
+### 4.2 Biên dịch & SUID
+
+```bash
 sudo su
 cd /home/lab2/lab2
 
-# Biên dịch
 clang vulnerable-program.c -o vulnerable-program
 clang symbolic-link.c -o symbolic-link
 clang vulnerable-program-fix.c -o vulnerable-program-fix
 
-# Thiết lập SUID bit
 chmod u+s vulnerable-program
 chmod u+s vulnerable-program-fix
 
-# Tạo file mục tiêu
-echo "This is a file owned by the user root" > passwd
+echo "This is a file owned by root" > passwd
 echo "password root is 123root" >> passwd
 
-# Thoát root
 exit
-4.3 Thực hiện khai thác
-bash
-su - lab2
-cd ~/lab2
+```
+
+### 4.3 Chạy exploit
+
+```bash
 chmod 755 exploit.sh exploit-fix.sh
 ./exploit.sh
-5. KẾT QUẢ KHAI THÁC
-5.1 Kết quả chạy exploit.sh
-text
-Starting attack...
-No permission
-No permission
-STOP... The passwd file has been changed
-This is a file owned by the user root
-password root is 123root
+```
 
+***
+
+## 5. KẾT QUẢ
+
+```text
 TOCTOU-Attack-Success
-5.2 Kiểm tra file passwd sau tấn công
-bash
-cat passwd
-Kết quả:
+```
 
-text
-This is a file owned by the user root
-password root is 123root
+***
 
-TOCTOU-Attack-Success
-Nhận xét: Dòng TOCTOU-Attack-Success đã được ghi thành công vào file passwd - file thuộc sở hữu của root. Điều này chứng tỏ cuộc tấn công đã thành công.
+## 6. PHÂN TÍCH
 
-6. PHÂN TÍCH LỖ HỔNG
-6.1 Mã nguồn có lỗ hổng
-c
-if (!access(fileName, W_OK)) {        // CHECK: kiểm tra quyền
-    // DELAY - tạo khe hở
-    for (i = 0; i < DELAY; i++) {
-        int a = i ^ 2;
-    }
-    
-    fileHandler = fopen(fileName, "a+");  // USE: mở file
-    // ... ghi dữ liệu
-}
-6.2 Nguyên nhân
-Vấn đề	Giải thích
-Check và Use không atomic	Giữa access() và fopen() có khoảng thời gian
-Vòng lặp DELAY	Cố tình tạo khe hở lớn để dễ khai thác
-SUID program	Chương trình chạy với quyền root
-Path không ổn định	Cùng một đường dẫn có thể trỏ đến file khác nhau
-6.3 Cơ chế tấn công
-Thời điểm CHECK: passwdlocal là file thường, user có quyền ghi
-
-Khe hở: Chương trình thực hiện vòng lặp DELAY
-
-Tấn công: Script chạy symbolic-link đổi passwdlocal thành symlink trỏ đến passwd
-
-Thời điểm USE: fopen("passwdlocal") mở symlink → thực chất mở passwd
-
-Kết quả: Ghi dữ liệu vào passwd với quyền root
-
-7. CÁCH KHẮC PHỤC
-7.1 Mã nguồn đã sửa
-c
+```c
 if (!access(fileName, W_OK)) {
-    // DELAY
     for (i = 0; i < DELAY; i++) {
         int a = i ^ 2;
     }
-    
-    /* FIX: Hạ quyền xuống user thực tế */
-    seteuid(getuid());    // ← Dòng sửa lỗi quan trọng
-    
-    fileHandler = fopen(fileName, "a+");
-    // ... ghi dữ liệu
+
+    fopen(fileName, "a+");
 }
-7.2 Giải thích giải pháp
-Hàm	Tác dụng
-getuid()	Lấy UID của user thực tế (lab2)
-seteuid()	Đặt effective UID = UID thực tế
-Kết quả: Trước khi mở file, chương trình hạ quyền từ root xuống lab2. Dù có mở được file passwd, cũng không có quyền ghi.
+```
 
-7.3 Kiểm tra bản vá
-bash
-./exploit-fix.sh
-# (Chạy vài giây, nhấn Ctrl+C)
-cat passwd
-Kết quả sau khi chạy exploit-fix.sh:
+***
 
-text
-This is a file owned by the user root
-password root is 123root
-Nhận xét: File passwd không bị thay đổi. Bản vá hoạt động hiệu quả.
+## 🔁 Timeline Attack
 
-8. KẾT LUẬN
-8.1 Tổng kết
-Nội dung	Kết quả
-Khai thác lỗ hổng TOCTOU	✅ Thành công
-Ghi đè file root	✅ Thành công
-Bản vá có hiệu quả	✅ Đã kiểm chứng
-8.2 Bài học rút ra
-Path không phải định danh an toàn - Cùng một đường dẫn có thể trỏ đến các file khác nhau tại các thời điểm khác nhau
+```mermaid
+sequenceDiagram
+    participant A as Program
+    participant B as Attacker
 
-Check và Use cần atomic - Không nên để khoảng cách thời gian giữa kiểm tra và sử dụng
+    A->>A: access()
+    A->>A: delay
 
-SUID program cần thận trọng - Nếu không được viết cẩn thận, có thể bị lợi dụng để leo thang đặc quyền
+    B->>B: unlink()
+    B->>B: symlink -> passwd
 
-Nguyên tắc hạ quyền - Chỉ giữ đặc quyền cao khi thực sự cần thiết, hạ quyền ngay sau khi có thể
+    A->>A: fopen()
+    A->>A: write root file
+```
 
-8.3 Đề xuất phòng tránh
-Sử dụng file descriptor (open() trước, sau đó fstat() để kiểm tra)
+***
 
-Hạ quyền trước khi thao tác file nhạy cảm
+## 7. KHẮC PHỤC
 
-Tránh sử dụng SUID khi không thực sự cần thiết
+```c
+seteuid(getuid());
+```
 
-Kiểm tra kỹ các chương trình có sử dụng access() và fopen() trên cùng đường dẫn
+***
 
+## 🔐 So sánh
+
+```mermaid
+flowchart TD
+A[access] --> B[fopen as root]
+B --> C[Exploit Success ❌]
+
+D[access] --> E[seteuid]
+E --> F[fopen as user]
+F --> G[Exploit Failed ✅]
+```
+
+***
+
+## 8. KẾT LUẬN
+
+- Exploit thành công  
+- Ghi file root thành công  
+- Fix hoạt động  
+
+***
+
+## 🔒 Best Practices
+
+- Dùng `open()` + `fstat()`  
+- Tránh `access()`  
+- Hạn chế SUID  
+- Drop privilege sớm  
+
+***
